@@ -6,32 +6,22 @@
 </template>
 
 <script>
+const vertexShaderSource = `
+attribute vec2 vPosition;
+varying vec2 position;
+void main() {
+  position = (vPosition + 1.0) * 0.5;
+  gl_Position = vec4(vPosition, 0, 1);
+}
+`;
 export default {
-  props: ['width', 'height', 'shader', 'uniforms'],
+  props: ['width', 'height'],
   data() {
     return {
-      uniforms: {},
-      shader:
-      `precision mediump float;
-      varying vec2 position;
-      uniform float time;
-      uniform float foo;
-      void main() {
-        gl_FragColor.r = 0.5;
-        gl_FragColor.g = 0.5;
-        gl_FragColor.b = foo;
-        gl_FragColor.a = 1.0;
-      }`
+      uniforms: {}
     }
   },
   ready() {
-    var vertexShaderSource =
-    `attribute vec2 a_position;
-    varying vec2 position;
-    void main() {
-      position = a_position * 0.5;
-      gl_Position = vec4(a_position, 0, 1);
-    }`;
 
     // Get webgl context
     this.gl = this.$els.canvas.getContext("webgl") || this.$els.canvas.getContext("experimental-webgl");
@@ -56,43 +46,50 @@ export default {
       ]),
       this.gl.DYNAMIC_DRAW
     );
-    // Compile and attach shaders
-    var vertexShader = this.gl.createShader(this.gl.VERTEX_SHADER);
-    this.gl.shaderSource(vertexShader, vertexShaderSource);
-    this.gl.compileShader(vertexShader);
-    if (!this.gl.getShaderParameter(vertexShader, this.gl.COMPILE_STATUS)) {
-      console.log(this.gl.getShaderInfoLog(vertexShader));
-      throw "Something went wrong compiling vertex shader.";
-    }
 
-    var fragmentShader = this.gl.createShader(this.gl.FRAGMENT_SHADER);
-    this.gl.shaderSource(fragmentShader, this.shader);
-    this.gl.compileShader(fragmentShader);
-    if (!this.gl.getShaderParameter(fragmentShader, this.gl.COMPILE_STATUS)) {
-      console.log(this.gl.getShaderInfoLog(fragmentShader));
-      throw "Something went wrong compiling fragment shader.";
-    }
-    this.program = this.gl.createProgram();
-    this.gl.attachShader(this.program, vertexShader);
-    this.gl.attachShader(this.program, fragmentShader);
-    this.gl.linkProgram(this.program);
-
-    console.log(this.gl.getProgramInfoLog(this.program));
-    this.gl.useProgram(this.program);
+    this.setShader(`
+      precision mediump float;
+      varying vec2 position;
+      uniform float time;
+      void main() {
+        gl_FragColor = vec4(0.0, 0.0, 0.5, 1.0);
+      }
+      `);
 
     this.start_time = new Date().getTime();
 
-    // var onWindowResize = () => {
     this.$els.canvas.width = this.width;
     this.$els.canvas.height = this.height;
     this.gl.viewport( 0, 0, this.$els.canvas.width, this.$els.canvas.height );
-    // }
-    // window.addEventListener('resize', onWindowResize, false);
-    // onWindowResize(null);
 
     this.animate();
   },
   methods: {
+    setShader: function(fragmentShaderSource) {
+      // Compile and attach shaders
+      var vertexShader = this.gl.createShader(this.gl.VERTEX_SHADER);
+      this.gl.shaderSource(vertexShader, vertexShaderSource);
+      this.gl.compileShader(vertexShader);
+      if (!this.gl.getShaderParameter(vertexShader, this.gl.COMPILE_STATUS)) {
+        console.log(this.gl.getShaderInfoLog(vertexShader));
+        throw "Something went wrong compiling vertex shader.";
+      }
+
+      this.program = this.gl.createProgram();
+      this.gl.attachShader(this.program, vertexShader);
+      var fragmentShader = this.gl.createShader(this.gl.FRAGMENT_SHADER);
+      this.gl.shaderSource(fragmentShader, fragmentShaderSource);
+      this.gl.compileShader(fragmentShader);
+      if (!this.gl.getShaderParameter(fragmentShader, this.gl.COMPILE_STATUS)) {
+        console.log(this.gl.getShaderInfoLog(fragmentShader));
+        throw "Something went wrong compiling fragment shader.";
+      }
+      this.gl.attachShader(this.program, fragmentShader);
+      this.gl.linkProgram(this.program);
+
+      console.log(this.gl.getProgramInfoLog(this.program));
+      this.gl.useProgram(this.program);
+    },
     animate: function() {
       window.requestAnimationFrame(this.animate.bind(this), this.$els.canvas);
       this.render();
@@ -101,7 +98,7 @@ export default {
       this.gl.clearColor(1., 0., 0., 1.);
       this.gl.clear(this.gl.COLOR_BUFFER_BIT);
 
-      var positionLocation = this.gl.getAttribLocation(this.program, "a_position");
+      var positionLocation = this.gl.getAttribLocation(this.program, "vPosition");
       this.gl.enableVertexAttribArray(positionLocation);
       this.gl.vertexAttribPointer(positionLocation, 2, this.gl.FLOAT, false, 0, 0);
 
